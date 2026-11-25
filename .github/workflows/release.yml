@@ -1,0 +1,97 @@
+name: Release — Build & Publish GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build apk --release --flavor foss
+      - run: flutter build apk --release --flavor play
+      - run: |
+          mkdir -p release-assets
+          cp build/app/outputs/flutter-apk/app-foss-release.apk release-assets/otpbridge-android-foss.apk
+          cp build/app/outputs/flutter-apk/app-play-release.apk release-assets/otpbridge-android-play.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          path: release-assets/*
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev libbluetooth-dev libnotify-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - run: |
+          mkdir -p release-assets
+          tar -czf release-assets/otpbridge-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: release-assets/*
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath release-assets\otpbridge-windows-x64.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: release-assets/*
+
+  publish-release:
+    needs: [build-android, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-assets
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: OtpBridge ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## OtpBridge ${{ github.ref_name }}
+
+            **100% Offline, End-to-End Encrypted (AES-256-GCM) Android → PC OTP Bridge** (Persian & English).
+
+            ### Downloads
+            - **Android (Recommended — Direct Install):** `otpbridge-android-foss.apk` (Hybrid NotificationListener + optional direct SMS)
+            - **Android (Play-compliant, no SMS permission):** `otpbridge-android-play.apk`
+            - **Windows (x64):** `otpbridge-windows-x64.zip`
+            - **Linux (x64):** `otpbridge-linux-x64.tar.gz`
+
+            > **Android 13+ note:** If Notification Access is locked after sideloading, follow the built-in device-specific Setup Guide inside the app (`App Info → ⋮ → Allow restricted settings`).
+          files: all-assets/*
