@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Deny all cleartext HTTP traffic globally. OtpBridge communicates strictly
+         over AES-256-GCM encrypted raw sockets on RFC1918 LAN / loopback only. -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

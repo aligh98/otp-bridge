@@ -1,0 +1,77 @@
+name: CI — Test & Build (Android FOSS/Play, Linux, Windows)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Dart Analyze & Precision/Security Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  build-android:
+    name: Build Android APKs (FOSS & Play Flavors)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: cd android && ./gradlew testFossDebugUnitTest
+      - run: flutter build apk --release --flavor foss
+      - run: flutter build apk --release --flavor play
+      - uses: actions/upload-artifact@v4
+        with:
+          name: otpbridge-android-apks
+          path: build/app/outputs/flutter-apk/*.apk
+
+  build-linux:
+    name: Build Linux Desktop
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev libbluetooth-dev libnotify-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: otpbridge-linux-x64
+          path: build/linux/x64/release/bundle/
+
+  build-windows:
+    name: Build Windows Desktop
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: otpbridge-windows-x64
+          path: build/windows/x64/runner/Release/
