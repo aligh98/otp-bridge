@@ -1,9 +1,13 @@
-#include "bluetooth_rfcomm_server.h"
-
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <winsock2.h>
 #include <windows.h>
+#include <bthsdpdef.h>
 #include <ws2bth.h>
 #include <bluetoothapis.h>
+
+#include "bluetooth_rfcomm_server.h"
 
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
